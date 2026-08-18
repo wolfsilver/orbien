@@ -165,6 +165,32 @@ pub struct PluginConfig {
     #[serde(default)]
     pub service: String,
 
+    #[serde(
+        default,
+        alias = "pluginAddr",
+        alias = "pluginServerAddr",
+        alias = "plugin_server_addr",
+        alias = "server_addr"
+    )]
+    pub plugin_addr: String,
+
+    #[serde(
+        default,
+        alias = "pluginUser",
+        alias = "plugin_username",
+        alias = "username"
+    )]
+    pub plugin_user: String,
+
+    #[serde(
+        default,
+        alias = "pluginPasswd",
+        alias = "plugin_password",
+        alias = "password",
+        alias = "passwd"
+    )]
+    pub plugin_passwd: String,
+
     #[serde(default, rename = "certFile", alias = "cert_file")]
     pub cert_file: String,
     #[serde(default, rename = "keyFile", alias = "key_file")]
@@ -436,7 +462,7 @@ impl ClientConfig {
                     }
                     if let Some(plugin) = &t.plugin {
                         let pt = plugin.plugin_type.trim().to_ascii_lowercase();
-                        if !pt.is_empty() && pt != "tls-term" {
+                        if !pt.is_empty() && pt != "tls-term" && pt != "socks5" && pt != "socks" {
                             return Err(anyhow!(
                                 "tunnel `{}` unsupported plugin.type {:?}",
                                 t.name,
@@ -456,6 +482,26 @@ impl ClientConfig {
                             if h.is_empty() || p == 0 {
                                 return Err(anyhow!(
                                     "tunnel `{}` plugin.service must be host:port",
+                                    t.name
+                                ));
+                            }
+                        }
+                        if pt == "socks5" || pt == "socks" {
+                            let addr = plugin.plugin_addr.trim();
+                            let fallback = plugin.service.trim();
+                            let target = if !addr.is_empty() { addr } else { fallback };
+                            if target.is_empty() {
+                                return Err(anyhow!(
+                                    "tunnel `{}` plugin.service or pluginServerAddr is required for socks5",
+                                    t.name
+                                ));
+                            }
+                            let (h, p) = parse_host_port(target, 0).map_err(|e| {
+                                anyhow!("tunnel `{}` invalid socks5 plugin address: {e}", t.name)
+                            })?;
+                            if h.is_empty() || p == 0 {
+                                return Err(anyhow!(
+                                    "tunnel `{}` plugin address must be host:port",
                                     t.name
                                 ));
                             }

@@ -94,3 +94,15 @@ hostHeaderRewrite = "127.0.0.1"
 [tunnels.plugin.requestHeaders.set]
 X-Forwarded-Proto = "https"
 X-Orbien-Tunnel = "portal"
+
+[[tunnels]]
+name = "socks"
+protocol = "tcp"
+remotePort = 1080
+
+[tunnels.plugin]
+type = "socks5"
+pluginServerAddr = "127.0.0.1:1080"
+pluginUser = "admin"
+# Replace with the real upstream SOCKS5 password before deployment.
+pluginPasswd = "<your-password>"
