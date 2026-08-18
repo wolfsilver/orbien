@@ -12,7 +12,7 @@ pub struct Socks5Plugin {
 }
 
 impl Socks5Plugin {
-    pub fn new(_ctx: PluginContext, cfg: &PluginConfig) -> Result<Self> {
+    pub fn new(ctx: PluginContext, cfg: &PluginConfig) -> Result<Self> {
         let proxy_addr = cfg
             .plugin_addr
             .trim()
@@ -30,7 +30,7 @@ impl Socks5Plugin {
         let password = cfg.plugin_passwd.trim().to_string();
 
         tracing::info!(
-            tunnel = %_ctx.name,
+            tunnel = %ctx.name,
             proxy = %proxy_addr,
             auth = %(!username.is_empty()),
             "plugin socks5 ready (forward through upstream SOCKS5 proxy)"
@@ -67,8 +67,7 @@ impl Plugin for Socks5Plugin {
         upstream.write_all(&req).await?;
 
         let mut reply = [0u8; 4];
-        let mut reader = &upstream;
-        reader.read_exact(&mut reply).await?;
+        upstream.read_exact(&mut reply).await?;
         if reply[0] != 0x05 {
             bail!("invalid SOCKS5 response version: {}", reply[0]);
         }
@@ -79,23 +78,23 @@ impl Plugin for Socks5Plugin {
         match reply[3] {
             0x01 => {
                 let mut addr = [0u8; 4];
-                reader.read_exact(&mut addr).await?;
+                upstream.read_exact(&mut addr).await?;
             }
             0x03 => {
                 let mut len = [0u8; 1];
-                reader.read_exact(&mut len).await?;
+                upstream.read_exact(&mut len).await?;
                 let len = len[0] as usize;
                 let mut addr = vec![0u8; len];
-                reader.read_exact(&mut addr).await?;
+                upstream.read_exact(&mut addr).await?;
             }
             0x04 => {
                 let mut addr = [0u8; 16];
-                reader.read_exact(&mut addr).await?;
+                upstream.read_exact(&mut addr).await?;
             }
             atyp => bail!("unsupported SOCKS5 destination type: {atyp}"),
         }
         let mut port = [0u8; 2];
-        reader.read_exact(&mut port).await?;
+        upstream.read_exact(&mut port).await?;
 
         let (mut conn_r, mut conn_w) = tokio::io::split(conn.stream);
         let (mut upstream_r, mut upstream_w) = tokio::io::split(upstream);
@@ -110,10 +109,11 @@ impl Plugin for Socks5Plugin {
 
 impl Socks5Plugin {
     async fn do_handshake(&self, stream: &mut TcpStream) -> Result<()> {
-        let mut methods = vec![0x00];
-        if !self.username.is_empty() {
-            methods.push(0x02);
-        }
+        let methods = if self.username.is_empty() {
+            vec![0x00]
+        } else {
+            vec![0x02]
+        };
 
         let mut hello = vec![0x05, methods.len() as u8];
         hello.extend_from_slice(&methods);
@@ -131,6 +131,9 @@ impl Socks5Plugin {
             0x02 => {
                 if self.username.is_empty() {
                     bail!("SOCKS5 upstream requires username/password authentication");
+                }
+                if self.username.len() > 255 || self.password.len() > 255 {
+                    bail!("SOCKS5 username/password exceeds 255 bytes");
                 }
                 let mut auth = vec![0x01];
                 let user = self.username.as_bytes();
@@ -150,6 +153,7 @@ impl Socks5Plugin {
                     );
                 }
             }
+            0xFF => bail!("SOCKS5 server rejected all offered authentication methods"),
             other => bail!("unsupported SOCKS5 auth method: {other}"),
         }
         Ok(())
@@ -174,6 +178,9 @@ fn socks5_connect_request(target: &str, port: u16) -> Result<Vec<u8>> {
         let bytes = target.as_bytes();
         if bytes.is_empty() {
             bail!("empty SOCKS5 target host");
+        }
+        if bytes.len() > 255 {
+            bail!("SOCKS5 target host exceeds 255 bytes");
         }
         out.push(0x03);
         out.push(bytes.len() as u8);

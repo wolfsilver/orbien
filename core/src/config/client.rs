@@ -167,7 +167,7 @@ pub struct PluginConfig {
 
     #[serde(
         default,
-        alias = "plugin_addr",
+        alias = "pluginAddr",
         alias = "pluginServerAddr",
         alias = "plugin_server_addr",
         alias = "server_addr"
@@ -176,7 +176,6 @@ pub struct PluginConfig {
 
     #[serde(
         default,
-        alias = "plugin_user",
         alias = "pluginUser",
         alias = "plugin_username",
         alias = "username"
@@ -185,7 +184,6 @@ pub struct PluginConfig {
 
     #[serde(
         default,
-        alias = "plugin_passwd",
         alias = "pluginPasswd",
         alias = "plugin_password",
         alias = "password",
@@ -494,7 +492,7 @@ impl ClientConfig {
                             let target = if !addr.is_empty() { addr } else { fallback };
                             if target.is_empty() {
                                 return Err(anyhow!(
-                                    "tunnel `{}` plugin.service or pluginAddr is required for socks5",
+                                    "tunnel `{}` plugin.service or pluginServerAddr is required for socks5",
                                     t.name
                                 ));
                             }
