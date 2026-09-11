@@ -16,17 +16,45 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# 软浮点 EABI，对应 FreshTomato 的 gnueabi ABI
-TARGET="armv7-unknown-linux-musleabi"
-# musl.cc 没有 armv7l 的 musleabi 包，用 arm-linux-musleabi 配合 -march=armv7-a
-TRIPLE="arm-linux-musleabi"
-XC_DIR="${XC_DIR:-/tmp/xc/${TRIPLE}-cross}"
-VERSION="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
-
+# 默认编译 soft 软浮点版本；如需编译 softfp，可设置 FLOAT_ABI=softfp 或传 --abi=softfp
+FLOAT_ABI="${FLOAT_ABI:-soft}"
 WHAT="${1:-client}"
 shift || true
 DO_UPX=0
-for a in "$@"; do [[ "$a" == "--upx" ]] && DO_UPX=1; done
+for a in "$@"; do
+  case "$a" in
+    --upx) DO_UPX=1 ;;
+    --abi=*) FLOAT_ABI="${a#*=}" ;;
+    --float-abi=*) FLOAT_ABI="${a#*=}" ;;
+    --soft) FLOAT_ABI="soft" ;;
+    --softfp) FLOAT_ABI="softfp" ;;
+  esac
+done
+
+case "$FLOAT_ABI" in
+  soft)
+    # 软浮点 EABI，对应 FreshTomato 的 gnueabi ABI
+    TARGET="armv7-unknown-linux-musleabi"
+    # musl.cc 没有 armv7l 的 musleabi 包，用 arm-linux-musleabi 配合 -march=armv7-a
+    TRIPLE="arm-linux-musleabi"
+    FLOAT_CFLAGS="-march=armv7-a -mtune=cortex-a9 -mfloat-abi=soft"
+    ABI_SUFFIX="musleabi"
+    ;;
+  softfp)
+    # 软浮点 ABI 但允许 VFP 使用；需要目标环境确实支持 VFP/softfp ABI
+    TARGET="armv7-unknown-linux-musleabihf"
+    TRIPLE="arm-linux-musleabihf"
+    FLOAT_CFLAGS="-march=armv7-a -mtune=cortex-a9 -mfpu=vfpv3-d16 -mfloat-abi=softfp"
+    ABI_SUFFIX="musleabihf"
+    ;;
+  *)
+    echo "unknown float ABI: $FLOAT_ABI (soft|softfp)" >&2
+    exit 1
+    ;;
+esac
+
+XC_DIR="${XC_DIR:-/tmp/xc/${TRIPLE}-cross}"
+VERSION="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
 
 # ---------- 1. 交叉工具链 ----------
 if [[ ! -x "${XC_DIR}/bin/${TRIPLE}-gcc" ]]; then
@@ -46,12 +74,12 @@ export "AR_${T_UPPER}=${TRIPLE}-ar"
 
 # 软浮点配置：
 #   -march=armv7-a -mtune=cortex-a9 : R7000 的 BCM4709 是 Cortex-A9
-#   -mfloat-abi=soft                : 纯软浮点，不生成 VFP/NEON 指令
-#     若固件内核支持 VFP，可换成 -mfloat-abi=softfp 提速，但兼容性变差
-#   不指定 -mfpu                     : 软浮点下无意义
+#   -mfloat-abi=soft    : 纯软浮点，不生成 VFP/NEON 指令
+#   -mfloat-abi=softfp  : 允许使用 VFP，但 ABI 仍保持 softfp，需目标固件/内核支持
+#   -mfpu=vfpv3-d16     : softfp 需要显式设置 FPU feature
 CFLAGS_VAR="CFLAGS_${T_UPPER}"
-export "${CFLAGS_VAR}=-march=armv7-a -mtune=cortex-a9 -mfloat-abi=soft"
-export "CXXFLAGS_${T_UPPER}=-march=armv7-a -mtune=cortex-a9 -mfloat-abi=soft"
+export "${CFLAGS_VAR}=${FLOAT_CFLAGS}"
+export "CXXFLAGS_${T_UPPER}=${FLOAT_CFLAGS}"
 
 # 不要加 +neon / +vfp：目标默认不带这些 feature，且在 FreshTomato 上不可靠
 export RUSTFLAGS="-C link-arg=-s"
@@ -72,7 +100,8 @@ case "$WHAT" in
   *) echo "unknown target: $WHAT (client|server|all)" >&2; exit 1 ;;
 esac
 
-echo "==> target : $TARGET (软浮点 EABI)"
+echo "==> float-abi : $FLOAT_ABI"
+echo "==> target : $TARGET"
 echo "==> cflags : ${!CFLAGS_VAR}"
 echo "==> cargo build --release --locked ${PKGS[*]} --target $TARGET"
 cargo build --release --locked "${PKGS[@]}" --target "$TARGET"
@@ -109,7 +138,7 @@ pack_one() {
     cp "$src" "${stage}/${name}"
     chmod +x "${stage}/${name}"
     [[ -n "$conf" && -f "$conf" ]] && cp "$conf" "${stage}/"
-    local archive="${OUT}/${name}_${VERSION}_linux_armv7_musleabi${suffix}.tar.gz"
+    local archive="${OUT}/${name}_${VERSION}_linux_armv7_${ABI_SUFFIX}${suffix}.tar.gz"
     tar -C "$stage" -czf "$archive" .
     rm -rf "$stage"
     [[ "$v" == "upx" ]] && rm -f "$src"
