@@ -56,15 +56,8 @@ jobs:
       version: ${{ needs.meta.outputs.version }}
     secrets: inherit
 
-  desktop:
-    needs: meta
-    uses: ./.github/workflows/release-desktop.yml
-    with:
-      version: ${{ needs.meta.outputs.version }}
-    secrets: inherit
-
   ship:
-    needs: [meta, binaries, desktop]
+    needs: [meta, binaries]
     uses: ./.github/workflows/release-ship.yml
     with:
       version: ${{ needs.meta.outputs.version }}
