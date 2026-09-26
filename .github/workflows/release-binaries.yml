@@ -253,3 +253,32 @@ jobs:
           name: cli-freebsd-amd64
           path: dist/release/*.tar.gz
           if-no-files-found: error
+
+  build-cli-armv7:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build server-ui
+        uses: ./.github/actions/build-server-ui
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: cli-armv7-musleabi
+
+      - name: Build ARMv7 soft-float binaries
+        run: bash scripts/build-armv7.sh all
+
+      - name: Upload ARMv7 CLI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-armv7-musleabi
+          path: dist/release/*.tar.gz
+          if-no-files-found: error
