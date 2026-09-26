@@ -58,6 +58,7 @@ esac
 XC_DIR="${XC_DIR:-/tmp/xc/${TRIPLE}-cross}"
 VERSION="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
 T_UPPER="$(echo "$TARGET" | tr '-' '_' | tr 'a-z' 'A-Z')"
+BUILD_PROFILE="release-size"
 
 # ---------- 1. 交叉工具链 ----------
 if [[ "$USE_CROSS" -eq 1 ]]; then
@@ -117,10 +118,10 @@ echo "==> target : $TARGET"
 echo "==> cflags : ${!CFLAGS_VAR}"
 BUILD_TOOL=(cargo)
 [[ "$USE_CROSS" -eq 1 ]] && BUILD_TOOL=(cross)
-echo "==> ${BUILD_TOOL[*]} build --release --locked ${PKGS[*]} --target $TARGET"
-"${BUILD_TOOL[@]}" build --release --locked "${PKGS[@]}" --target "$TARGET"
+echo "==> ${BUILD_TOOL[*]} build --profile $BUILD_PROFILE --locked ${PKGS[*]} --target $TARGET"
+"${BUILD_TOOL[@]}" build --profile "$BUILD_PROFILE" --locked "${PKGS[@]}" --target "$TARGET"
 
-BIN_DIR="target/${TARGET}/release"
+BIN_DIR="target/${TARGET}/${BUILD_PROFILE}"
 OUT="dist/release"
 mkdir -p "$OUT"
 
