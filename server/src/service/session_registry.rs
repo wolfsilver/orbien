@@ -22,7 +22,14 @@ impl Service {
         login: Login,
         peer: SocketAddr,
     ) -> Result<()> {
-        if !auth::verify_login(&self.cfg.auth.token, &login.auth_digest, login.timestamp) {
+        if let Err(reason) = auth::verify_login(
+            &self.cfg.auth.token,
+            &login.auth_digest,
+            login.timestamp,
+            auth::unix_now_secs(),
+            &self.auth_replay,
+        ) {
+            tracing::warn!(%reason, %peer, "login rejected");
             let mut stream = stream;
             let _ = msg::write_msg(
                 &mut stream,
@@ -98,7 +105,6 @@ impl Service {
                 "replacing prior control session"
             );
             old.shutdown().await;
-            old.wait_finished().await;
         }
 
         match self.agents.try_online(AgentOnlineSpec {
@@ -149,12 +155,13 @@ impl Service {
         let metrics = Arc::clone(&self.metrics);
         let rid = session_id.clone();
         let result = Arc::clone(&control).run().await;
-        control.shutdown().await;
-        metrics.close_client();
 
         let tunnel_count = control.tunnel_count().await;
-        let _ = remove_if_current(&controls, &rid, &control).await;
-        agents.release(&rid, generation, tunnel_count);
+        control.shutdown().await;
+        if remove_if_current(&controls, &rid, &control).await {
+            agents.release(&rid, generation, tunnel_count);
+        }
+        metrics.close_client();
 
         result
     }
@@ -165,11 +172,22 @@ impl Service {
         nw: NewDataConn,
     ) -> Result<()> {
         if nw.session_id.trim().is_empty() {
-            return Err(anyhow!("empty session_id for data conn"));
+            return Err(anyhow!("empty session_id for data connection"));
         }
-        if !auth::verify_auth_digest(&self.cfg.auth.token, &nw.auth_digest, nw.timestamp) {
+        if let Err(reason) = auth::verify_auth_digest(
+            &self.cfg.auth.token,
+            &nw.auth_digest,
+            nw.timestamp,
+            auth::unix_now_secs(),
+            None,
+        ) {
+            tracing::warn!(
+                %reason,
+                session_id = %nw.session_id,
+                "data connection authentication failed"
+            );
             return Err(anyhow!(
-                "data conn auth failed for session_id={}",
+                "data connection authentication failed for session_id={}",
                 nw.session_id
             ));
         }
@@ -180,7 +198,7 @@ impl Service {
                 Ok(())
             }
             None => Err(anyhow!(
-                "no accepting control for data conn session_id={}",
+                "no accepting control for data connection session_id={}",
                 nw.session_id
             )),
         }

@@ -9,6 +9,7 @@ use crate::tunnel::{
 };
 use agent_registry::AgentRegistry;
 use anyhow::{anyhow, Result};
+use orbien_core::auth::ReplayCache;
 use orbien_core::config::ServerConfig;
 use orbien_core::transport;
 use session_table::SessionMap;
@@ -24,6 +25,7 @@ pub struct Service {
     cfg: ServerConfig,
     pub(crate) controls: Arc<Mutex<SessionMap>>,
     pub(crate) agents: Arc<AgentRegistry>,
+    pub(crate) auth_replay: Arc<ReplayCache>,
     http_gw: Option<Arc<HttpGw>>,
     https_gw: Option<Arc<HttpsGw>>,
     tls_config: Arc<rustls::ServerConfig>,
@@ -36,6 +38,9 @@ pub struct Service {
 
 impl Service {
     pub fn new(cfg: ServerConfig) -> Result<Self> {
+        if cfg.auth.token.is_empty() {
+            tracing::warn!("auth.token is empty; authentication is disabled");
+        }
         let http_gw = if cfg.http_gw_enabled() {
             Some(Arc::new(HttpGw::new(cfg.http_gw_port)))
         } else {
@@ -56,6 +61,7 @@ impl Service {
             cfg,
             controls: Arc::new(Mutex::new(HashMap::new())),
             agents: Arc::new(AgentRegistry::new()),
+            auth_replay: Arc::new(ReplayCache::new()),
             http_gw,
             https_gw,
             tls_config,
@@ -76,7 +82,7 @@ impl Service {
             %tcp_addr,
             ws_path = %this.cfg.transport.ws_path,
             tcp_mux = this.cfg.transport.tcp_mux,
-            "tcp/websocket control/data listener ready"
+            "tcp or websocket control or data listener ready"
         );
 
         let gw_shutdown = Arc::new(Notify::new());
@@ -91,7 +97,10 @@ impl Service {
             let port = this.cfg.http_gw_port;
             let gw = Arc::clone(gw);
             let shutdown = Arc::clone(&gw_shutdown);
-            set.spawn(async move { run_http_gw_listener(bind, port, gw, shutdown).await });
+            let keepalive = this.cfg.transport.tcp_keepalive();
+            set.spawn(
+                async move { run_http_gw_listener(bind, port, gw, keepalive, shutdown).await },
+            );
         }
 
         if let Some(ref gw) = this.https_gw {
@@ -99,7 +108,10 @@ impl Service {
             let port = this.cfg.https_gw_port;
             let gw = Arc::clone(gw);
             let shutdown = Arc::clone(&gw_shutdown);
-            set.spawn(async move { run_https_gw_listener(bind, port, gw, shutdown).await });
+            let keepalive = this.cfg.transport.tcp_keepalive();
+            set.spawn(
+                async move { run_https_gw_listener(bind, port, gw, keepalive, shutdown).await },
+            );
         }
 
         if this.cfg.quic_enabled() {
@@ -115,7 +127,7 @@ impl Service {
                 &this.cfg.transport.tls.key_file,
                 &this.cfg.transport.tls.trusted_ca_file,
             )?;
-            tracing::info!(%quic_addr, "quic control/data listener ready");
+            tracing::info!(%quic_addr, "quic control or data listener ready");
             let svc = Arc::clone(&this);
             set.spawn(async move { svc.run_quic(endpoint).await });
         }
@@ -128,7 +140,7 @@ impl Service {
             tracing::info!(
                 %kcp_addr,
                 tcp_mux = this.cfg.transport.tcp_mux,
-                "kcp control/data listener ready"
+                "kcp control or data listener ready"
             );
             let svc = Arc::clone(&this);
             set.spawn(async move { svc.run_kcp(listener).await });
@@ -191,7 +203,6 @@ impl Service {
         let tunnel_count = control.tunnel_count().await;
         let generation = control.generation;
         control.kick("kicked from dashboard").await;
-        control.wait_finished().await;
 
         {
             let mut map = self.controls.lock().await;

@@ -11,7 +11,7 @@ import TabItem from '@theme/TabItem';
 
 - Tunnel protocols: **TCP** and **HTTP** only
 - Transport: **TCP** only
-- **No TCP multiplexing**: set `orbien.tcp-mux` to `false`, and set `[transport].tcpMux = false` on the server (multiplexing is on by default; turn it off when using the Java client)
+- **No TCP multiplexing**: `orbien.tcp-mux` must be `false`, and the server must also set `[transport].tcpMux = false` (multiplexing is on by default; turn it off when using the Java client)
 
 <Tabs>
     <TabItem value="Maven" label="Maven" default>
@@ -19,34 +19,32 @@ import TabItem from '@theme/TabItem';
         <dependency>
             <groupId>io.github.lxien</groupId>
             <artifactId>orbien-spring-boot-starter</artifactId>
-            <version>3.6.0</version>
+            <version>3.7.0</version>
         </dependency>
         ```
     </TabItem>
     <TabItem value="Gradle" label="Gradle">
         ```groovy
-        implementation("io.github.lxien:orbien-spring-boot-starter:3.6.0")
+        implementation("io.github.lxien:orbien-spring-boot-starter:3.7.0")
         ```
     </TabItem>
 </Tabs>
 
 ## Minimal configuration
 
-`local-port` and `name` are optional. When omitted, the starter uses the Spring Boot web port and `spring.application.name` (or `orbien-{protocol}`).
-
 ```yaml
 # application.yml
 orbien:
   enabled: true
   server: "127.0.0.1:9527"
-  # token: YOUR_TOKEN # optional
+  # token: YOUR_TOKEN
   tunnel:
     protocol: http
     domains:
-      - web.domain.com
+      - web.example.com
 ```
 
-Disable multiplexing on the server, for example:
+Disable multiplexing on the server:
 
 ```toml
 # orbien-server.toml
@@ -54,7 +52,20 @@ listen = "0.0.0.0:9527"
 httpGwPort = 80
 
 [transport]
-tcpMux = false # disable TCP multiplexing
+tcpMux = false
+```
+
+## TCP example
+
+```yaml
+orbien:
+  enabled: true
+  server: "127.0.0.1:9527"
+  token: YOUR_TOKEN
+  tunnel:
+    protocol: tcp
+    # local-port: 3306
+    remote-port: 9000
 ```
 
 ## Full reference
@@ -65,18 +76,35 @@ orbien:
   enabled: true
   server: "127.0.0.1:9527"
   token: YOUR_TOKEN
-  tcp-mux: false # must be false and match the server
-  pool-count: 1 # data-connection pool size requested at login
+  tcp-mux: false # must be false
+  pool-count: 1
   heartbeat-interval-secs: 30
-  user: spring-boot-demo # optional; shown on the dashboard
-  # session-id: ""              # optional; if empty, restore from session-id-file or generate
-  # session-id-file: ""         # optional; if empty, use the default path under the user home
+  user: spring-boot-demo
   tunnel:
-    name: web-demo # optional
-    protocol: http # tcp | http
+    name: web-demo
+    protocol: http
     local-ip: 127.0.0.1
-    # local-port: 8080         # optional; defaults to the Spring Boot listen port
-    # remote-port: 9000         # required when protocol=tcp
-    domains: # required when protocol=http
-      - web.domain.com
+    # local-port: 8080
+    # remote-port: 9000
+    domains:
+      - web.example.com
+      # - admin
 ```
+
+## Configuration reference
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `orbien.enabled` | `true` | Whether to enable |
+| `orbien.server` | `127.0.0.1:9527` | Server address |
+| `orbien.token` | empty | Auth token |
+| `orbien.tcp-mux` | `false` | Only `false` is allowed |
+| `orbien.pool-count` | `1` | Data connections pre-allocated at login |
+| `orbien.heartbeat-interval-secs` | `30` | Control-plane heartbeat interval (seconds) |
+| `orbien.user` | empty | Display username |
+| `orbien.tunnel.name` | see above | Tunnel name |
+| `orbien.tunnel.protocol` | `tcp` | `tcp` or `http` |
+| `orbien.tunnel.local-ip` | `127.0.0.1` | Local service IP |
+| `orbien.tunnel.local-port` | `0` | Local service port |
+| `orbien.tunnel.remote-port` | `0` | Public port on the server; required when `protocol=tcp` |
+| `orbien.tunnel.domains` | `[]` | HTTP domain list; required when `protocol=http` |

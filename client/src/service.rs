@@ -32,6 +32,9 @@ pub struct Service {
 
 impl Service {
     pub fn new(cfg: ClientConfig) -> Self {
+        if cfg.auth.token.is_empty() {
+            tracing::warn!("auth.token is empty; authentication is disabled");
+        }
         Self { cfg }
     }
 
@@ -295,6 +298,7 @@ async fn run_session_loop(
     loop {
         tokio::select! {
             _ = cancel.cancelled() => {
+                control.close_all_tunnels().await;
                 control.request_disconnect();
                 let _ = done.await;
                 return SessionLoopEnd::Cancelled;

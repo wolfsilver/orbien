@@ -21,6 +21,10 @@ use tokio::time::sleep;
 type CtrlRead = ReadHalf<DynStream>;
 type CtrlWrite = WriteHalf<DynStream>;
 
+const KICK_WRITE_TIMEOUT: Duration = Duration::from_secs(1);
+const WRITER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
+const FINISHED_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
+
 pub struct Control {
     pub session_id: String,
     pub generation: u64,
@@ -124,6 +128,10 @@ impl Control {
             session_id: self.session_id.clone(),
             generation: self.generation,
         }
+    }
+
+    pub fn tcp_keepalive(&self) -> orbien_core::net::TcpKeepaliveConfig {
+        self.cfg.transport.tcp_keepalive()
     }
 
     pub fn is_closed(&self) -> bool {
@@ -253,8 +261,16 @@ impl Control {
                 break;
             }
             self.reap_bg_tasks().await;
+            if self.closed.load(Ordering::SeqCst) {
+                break;
+            }
+            let shutdown = self.shutdown_notify.notified();
+            tokio::pin!(shutdown);
+            if self.closed.load(Ordering::SeqCst) {
+                break;
+            }
             let msg = tokio::select! {
-                _ = self.shutdown_notify.notified() => {
+                _ = &mut shutdown => {
                     break;
                 }
                 msg = async {
@@ -311,7 +327,7 @@ impl Control {
     pub async fn shutdown(&self) {
         self.signal_close();
         if self.cleaning.swap(true, Ordering::SeqCst) {
-            self.wait_finished().await;
+            let _ = tokio::time::timeout(FINISHED_WAIT_TIMEOUT, self.wait_finished()).await;
             return;
         }
         {
@@ -322,8 +338,20 @@ impl Control {
             }
         }
         {
-            let mut writer = self.writer.lock().await;
-            let _ = writer.shutdown().await;
+            let shut = async {
+                let mut writer = self.writer.lock().await;
+                let _ = writer.shutdown().await;
+            };
+            if tokio::time::timeout(WRITER_SHUTDOWN_TIMEOUT, shut)
+                .await
+                .is_err()
+            {
+                tracing::warn!(
+                    session_id = %self.session_id,
+                    generation = self.generation,
+                    "control writer shutdown timed out"
+                );
+            }
         }
         {
             let mut bg = self.bg_tasks.lock().await;
@@ -335,15 +363,24 @@ impl Control {
 
     pub async fn kick(&self, reason: impl Into<String>) {
         let reason = reason.into();
-        {
+        self.signal_close();
+        let wrote = tokio::time::timeout(KICK_WRITE_TIMEOUT, async {
             let mut writer = self.writer.lock().await;
-            let _ = msg::write_msg(
+            msg::write_msg(
                 &mut *writer,
                 &Message::KickOut(KickOut {
                     reason: reason.clone(),
                 }),
             )
-            .await;
+            .await
+        })
+        .await;
+        if !matches!(wrote, Ok(Ok(()))) {
+            tracing::debug!(
+                session_id = %self.session_id,
+                generation = self.generation,
+                "kick-out write skipped or failed"
+            );
         }
         tracing::info!(
             session_id = %self.session_id,

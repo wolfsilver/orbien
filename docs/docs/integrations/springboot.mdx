@@ -19,34 +19,32 @@ import TabItem from '@theme/TabItem';
         <dependency>
             <groupId>io.github.lxien</groupId>
             <artifactId>orbien-spring-boot-starter</artifactId>
-            <version>3.6.0</version>
+            <version>3.7.0</version>
         </dependency>
         ```
     </TabItem>
     <TabItem value="Gradle" label="Gradle">
         ```groovy
-        implementation("io.github.lxien:orbien-spring-boot-starter:3.6.0")
+        implementation("io.github.lxien:orbien-spring-boot-starter:3.7.0")
         ```
     </TabItem>
 </Tabs>
 
 ## 最小配置
 
-`local-port` / `name` 可省略：未填时分别使用 Spring Boot Web 端口与 `spring.application.name`（或 `orbien-{protocol}`）。
-
 ```yaml
 # application.yml
 orbien:
   enabled: true
   server: "127.0.0.1:9527"
-  # token: YOUR_TOKEN # 可选
+  # token: YOUR_TOKEN
   tunnel:
     protocol: http
     domains:
-      - web.domain.com
+      - web.example.com
 ```
 
-服务端需关闭多路复用，例如：
+服务端需关闭多路复用：
 
 ```toml
 # orbien-server.toml
@@ -54,7 +52,20 @@ listen = "0.0.0.0:9527"
 httpGwPort = 80
 
 [transport]
-tcpMux = false # 关闭 TCP 多路复用
+tcpMux = false
+```
+
+## TCP 示例
+
+```yaml
+orbien:
+  enabled: true
+  server: "127.0.0.1:9527"
+  token: YOUR_TOKEN
+  tunnel:
+    protocol: tcp
+    # local-port: 3306
+    remote-port: 9000
 ```
 
 ## 完整参考
@@ -65,18 +76,35 @@ orbien:
   enabled: true
   server: "127.0.0.1:9527"
   token: YOUR_TOKEN
-  tcp-mux: false # 必须为 false，且与服务端一致
-  pool-count: 1 # 登录时预申请的数据连接池大小
+  tcp-mux: false # 必须为 false
+  pool-count: 1
   heartbeat-interval-secs: 30
-  user: spring-boot-demo # 可选，展示在 Dashboard
-  # session-id: ""              # 可选；为空则从 session-id-file 恢复，或自动生成
-  # session-id-file: ""         # 可选；为空则使用用户目录下的默认路径
+  user: spring-boot-demo
   tunnel:
-    name: web-demo # 可选
-    protocol: http # tcp | http
+    name: web-demo
+    protocol: http
     local-ip: 127.0.0.1
-    # local-port: 8080         # 可选；未填则使用 Spring Boot 监听端口
-    # remote-port: 9000         # 仅 protocol=tcp 时需要
-    domains: # protocol=http 时必填
-      - web.domain.com
+    # local-port: 8080
+    # remote-port: 9000
+    domains:
+      - web.example.com
+      # - admin
 ```
+
+## 配置项说明
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `orbien.enabled` | `true` | 是否启用 |
+| `orbien.server` | `127.0.0.1:9527` | 服务端地址|
+| `orbien.token` | 空 | 鉴权 token|
+| `orbien.tcp-mux` | `false` | 仅允许 `false`|
+| `orbien.pool-count` | `1` | 登录时预申请的数据连接数|
+| `orbien.heartbeat-interval-secs` | `30` | 控制面心跳间隔（秒）|
+| `orbien.user` | 空 | 展示用用户名 |
+| `orbien.tunnel.name` | 见上文 | 隧道名 |
+| `orbien.tunnel.protocol` | `tcp` | `tcp` 或 `http` |
+| `orbien.tunnel.local-ip` | `127.0.0.1` | 本地服务 IP |
+| `orbien.tunnel.local-port` | `0` | 本地服务端口|
+| `orbien.tunnel.remote-port` | `0` | 服务端对外端口；`protocol=tcp` 时必填 |
+| `orbien.tunnel.domains` | `[]` | HTTP 域名列表；`protocol=http` 时必填 |

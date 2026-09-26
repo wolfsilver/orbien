@@ -21,8 +21,6 @@ public class OrbienProperties {
     private int poolCount = 1;
     private String user = "";
     private int heartbeatIntervalSecs = 30;
-    private String sessionId = "";
-    private String sessionIdFile = "";
 
     @NestedConfigurationProperty
     private final Tunnel tunnel = new Tunnel();
@@ -83,22 +81,6 @@ public class OrbienProperties {
         this.heartbeatIntervalSecs = heartbeatIntervalSecs;
     }
 
-    public String getSessionId() {
-        return sessionId;
-    }
-
-    public void setSessionId(String sessionId) {
-        this.sessionId = sessionId == null ? "" : sessionId;
-    }
-
-    public String getSessionIdFile() {
-        return sessionIdFile;
-    }
-
-    public void setSessionIdFile(String sessionIdFile) {
-        this.sessionIdFile = sessionIdFile == null ? "" : sessionIdFile;
-    }
-
     public Tunnel getTunnel() {
         return tunnel;
     }
@@ -118,8 +100,6 @@ public class OrbienProperties {
         cfg.setPoolCount(poolCount);
         cfg.setUser(user);
         cfg.setHeartbeatIntervalSecs(heartbeatIntervalSecs);
-        cfg.setSessionId(sessionId);
-        cfg.setSessionIdFile(sessionIdFile);
         if (hasTunnel()) {
             OrbienClientConfig.TunnelConfig p = new OrbienClientConfig.TunnelConfig();
             String name = tunnel.getName();

@@ -28,15 +28,19 @@ pub fn is_websocket_http_request(peeked: &[u8], path: &str) -> bool {
 pub async fn accept_websocket(stream: TcpStream) -> Result<DynStream> {
     let ws = accept_async(stream)
         .await
-        .context("websocket server accept/upgrade")?;
+        .context("websocket server accept or upgrade")?;
     Ok(WsByteStream::new(ws).boxed())
 }
 
-pub async fn dial_websocket(endpoint: &str, path: &str) -> Result<DynStream> {
+pub async fn dial_websocket(
+    endpoint: &str,
+    path: &str,
+    keepalive: crate::net::TcpKeepaliveConfig,
+) -> Result<DynStream> {
     let stream = TcpStream::connect(endpoint)
         .await
         .with_context(|| format!("tcp dial for websocket {endpoint}"))?;
-    crate::net::enable_nodelay(&stream);
+    crate::net::tune_tcp_stream(&stream, keepalive);
     let url = format!("ws://{endpoint}{path}");
     let (ws, _resp) = client_async(&url, stream)
         .await
@@ -150,7 +154,7 @@ where
         self: Pin<&mut Self>,
         cx: &mut TaskContext<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        match Pin::new(&mut self.get_mut().inner).poll_flush(cx) {
+        match Pin::new(&mut self.get_mut().inner).poll_close(cx) {
             Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
             Poll::Ready(Err(e)) => Poll::Ready(Err(std::io::Error::other(e))),
             Poll::Pending => Poll::Pending,
