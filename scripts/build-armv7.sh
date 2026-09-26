@@ -21,9 +21,11 @@ FLOAT_ABI="${FLOAT_ABI:-soft}"
 WHAT="${1:-client}"
 shift || true
 DO_UPX=0
+USE_CROSS=0
 for a in "$@"; do
   case "$a" in
     --upx) DO_UPX=1 ;;
+    --cross) USE_CROSS=1 ;;
     --abi=*) FLOAT_ABI="${a#*=}" ;;
     --float-abi=*) FLOAT_ABI="${a#*=}" ;;
     --soft) FLOAT_ABI="soft" ;;
@@ -55,22 +57,32 @@ esac
 
 XC_DIR="${XC_DIR:-/tmp/xc/${TRIPLE}-cross}"
 VERSION="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+T_UPPER="$(echo "$TARGET" | tr '-' '_' | tr 'a-z' 'A-Z')"
 
 # ---------- 1. 交叉工具链 ----------
-if [[ ! -x "${XC_DIR}/bin/${TRIPLE}-gcc" ]]; then
-  echo "==> 下载 ${TRIPLE} 交叉工具链"
-  mkdir -p "$(dirname "$XC_DIR")"
-  curl -fsSL -o /tmp/xc-armv7.tgz "https://musl.cc/${TRIPLE}-cross.tgz"
-  tar xzf /tmp/xc-armv7.tgz -C "$(dirname "$XC_DIR")"
-fi
-export PATH="${XC_DIR}/bin:$PATH"
+if [[ "$USE_CROSS" -eq 1 ]]; then
+  if ! command -v cross >/dev/null 2>&1; then
+    echo "cross 未安装，请先运行: cargo install cross --version 0.2.5 --locked" >&2
+    exit 1
+  fi
+  CROSS_IMAGE="${CROSS_IMAGE:-ghcr.io/cross-rs/${TARGET}:0.2.5}"
+  export "CROSS_TARGET_${T_UPPER}_IMAGE=${CROSS_IMAGE}"
+else
+  if [[ ! -x "${XC_DIR}/bin/${TRIPLE}-gcc" ]]; then
+    echo "==> 下载 ${TRIPLE} 交叉工具链"
+    mkdir -p "$(dirname "$XC_DIR")"
+    curl -fSL --retry 3 --retry-all-errors --retry-delay 5 \
+      --connect-timeout 30 --max-time 180 \
+      -o /tmp/xc-armv7.tgz "https://musl.cc/${TRIPLE}-cross.tgz"
+    tar xzf /tmp/xc-armv7.tgz -C "$(dirname "$XC_DIR")"
+  fi
+  export PATH="${XC_DIR}/bin:$PATH"
 
-# 由 TARGET 推导 cargo/CC 等环境变量名，避免 TARGET 改动后漏改
-T_UPPER="$(echo "$TARGET" | tr '-' '_' | tr 'a-z' 'A-Z')"
-export "CARGO_TARGET_${T_UPPER}_LINKER=${TRIPLE}-gcc"
-export "CC_${T_UPPER}=${TRIPLE}-gcc"
-export "CXX_${T_UPPER}=${TRIPLE}-g++"
-export "AR_${T_UPPER}=${TRIPLE}-ar"
+  export "CARGO_TARGET_${T_UPPER}_LINKER=${TRIPLE}-gcc"
+  export "CC_${T_UPPER}=${TRIPLE}-gcc"
+  export "CXX_${T_UPPER}=${TRIPLE}-g++"
+  export "AR_${T_UPPER}=${TRIPLE}-ar"
+fi
 
 # 软浮点配置：
 #   -march=armv7-a -mtune=cortex-a9 : R7000 的 BCM4709 是 Cortex-A9
@@ -103,8 +115,10 @@ esac
 echo "==> float-abi : $FLOAT_ABI"
 echo "==> target : $TARGET"
 echo "==> cflags : ${!CFLAGS_VAR}"
-echo "==> cargo build --release --locked ${PKGS[*]} --target $TARGET"
-cargo build --release --locked "${PKGS[@]}" --target "$TARGET"
+BUILD_TOOL=(cargo)
+[[ "$USE_CROSS" -eq 1 ]] && BUILD_TOOL=(cross)
+echo "==> ${BUILD_TOOL[*]} build --release --locked ${PKGS[*]} --target $TARGET"
+"${BUILD_TOOL[@]}" build --release --locked "${PKGS[@]}" --target "$TARGET"
 
 BIN_DIR="target/${TARGET}/release"
 OUT="dist/release"

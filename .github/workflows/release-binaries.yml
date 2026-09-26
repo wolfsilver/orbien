@@ -275,8 +275,11 @@ jobs:
         with:
           key: cli-armv7-musleabi
 
+      - name: Install Cross
+        run: cargo install cross --version 0.2.5 --locked
+
       - name: Build ARMv7 soft-float binaries
-        run: bash scripts/build-armv7.sh all
+        run: bash scripts/build-armv7.sh all --cross
 
       - name: Upload ARMv7 CLI artifacts
         uses: actions/upload-artifact@v4
