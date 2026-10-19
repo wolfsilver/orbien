@@ -17,7 +17,7 @@ const FeatureList: FeatureItem[] = [
         ),
         description: (
             <Translate id="homepage.feature.perf.desc">
-                高性能、低延迟、抗丢包、内存占用低、无GC停顿，适合长期服务器运行
+                高性能、低延迟、抗丢包、内存占用低、无GC停顿，适合服务器长期运行
             </Translate>
         ),
     },
@@ -39,7 +39,7 @@ const FeatureList: FeatureItem[] = [
         ),
         description: (
             <Translate id="homepage.feature.transport.desc">
-                支持 TCP、QUIC、KCP、WebSocket 多种传输协议，同时支持TCP多路复用
+                支持 TCP、QUIC、KCP、WebSocket 多种传输协议；支持 TCP 多路复用
             </Translate>
         ),
     },
@@ -49,7 +49,7 @@ const FeatureList: FeatureItem[] = [
         ),
         description: (
             <Translate id="homepage.feature.security.desc">
-                支持 Token 鉴权与 TLS /mTLS 加密传输；HTTPS采用透明转发和可选客户端TLS终止
+                支持 Token 鉴权与 TLS /mTLS 加密传输；HTTPS 采用透明转发和可选客户端 TLS 终止
             </Translate>
         ),
     },
@@ -59,7 +59,7 @@ const FeatureList: FeatureItem[] = [
         ),
         description: (
             <Translate id="homepage.feature.ops.desc">
-                内置轻量服务端Web管理界面和原生桌面客户端，便于运维监控，提高效率
+                内置轻量服务端 Web 管理界面和原生桌面客户端；支持配置热重载和 ACME 证书自动申请
             </Translate>
         ),
     },

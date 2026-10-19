@@ -21,7 +21,7 @@
     <img src="https://img.shields.io/badge/Rust-Tokio-orange?style=for-the-badge&logo=rust&logoColor=white" alt="Rust"/>
   </a>
   <a href="https://github.com/orbien-org/orbien/releases">
-    <img src="https://img.shields.io/badge/orbien-3.7.0-blue?style=for-the-badge" alt="orbien:3.7.0"/>
+    <img src="https://img.shields.io/badge/orbien-3.9.0-blue?style=for-the-badge" alt="orbien:3.9.0"/>
   </a>
   <a href="https://somsubhra.github.io/github-release-stats/?username=orbien-org&repository=orbien">
     <img src="https://img.shields.io/github/downloads/orbien-org/orbien/total?style=for-the-badge" alt="Downloads"/>
@@ -31,10 +31,18 @@
   </a>
 </div>
 
+<p align="center">
+ <a href="https://www.star-history.com/orbien-org/orbien">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=orbien-org/orbien&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=orbien-org/orbien&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=orbien-org/orbien&type=rank" />
+  </picture>
+ </a>
+</p>
 <div align="center">
   <a href="https://trendshift.io/repositories/128255?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-128255" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/128255/daily?language=Rust" alt="orbien-org%2Forbien | Trendshift" width="250" height="55"/></a>
 </div>
-
 <div align="center">
   <a href="README.md"><strong>English</strong></a> &nbsp;|&nbsp;
   <a href="README_ZH.md"><strong>简体中文</strong></a>
@@ -44,7 +52,7 @@
 
 ![dashboard.png](doc/img/dashboard.png)
 
-A lightweight, high-performance, and secure intranet penetration tool with a binary size of around `5MB`.
+A lightweight, high-performance, and secure reverse proxy with a binary size of around 5MB. Securely expose local services behind a firewall to the public internet.
 
 ## Features
 
@@ -53,7 +61,7 @@ A lightweight, high-performance, and secure intranet penetration tool with a bin
 - **Transport protocols**: TCP, KCP, WebSocket, QUIC, with TCP multiplexing support
 - **Security**: Token-based tunnel authentication, TLS and mTLS encryption; HTTPS supports transparent forwarding and client-side TLS termination
 - **Cross-platform**: Windows, Linux, macOS, FreeBSD, and more
-- **Operations**: lightweight Web admin UI and cross-platform desktop client for easy configuration and monitoring
+- **Operations**: lightweight server-side Web admin UI and cross-platform native desktop client; supports config hot-reload and ACME automatic certificate issuance
 
 ## Quick Start
 

@@ -21,7 +21,7 @@
     <img src="https://img.shields.io/badge/Rust-Tokio-orange?style=for-the-badge&logo=rust&logoColor=white" alt="Rust"/>
   </a>
   <a href="https://github.com/orbien-org/orbien/releases">
-    <img src="https://img.shields.io/badge/orbien-3.7.0-blue?style=for-the-badge" alt="orbien:3.7.0"/>
+    <img src="https://img.shields.io/badge/orbien-3.9.0-blue?style=for-the-badge" alt="orbien:3.9.0"/>
   </a>
   <a href="https://somsubhra.github.io/github-release-stats/?username=orbien-org&repository=orbien">
     <img src="https://img.shields.io/github/downloads/orbien-org/orbien/total?style=for-the-badge" alt="Downloads"/>
@@ -30,7 +30,15 @@
     <img src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"/>
   </a>
 </div>
-
+<p align="center">
+ <a href="https://www.star-history.com/orbien-org/orbien">
+  <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=orbien-org/orbien&type=rank&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=orbien-org/orbien&type=rank" />
+   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=orbien-org/orbien&type=rank" />
+  </picture>
+ </a>
+</p>
 <div align="center">
   <a href="https://trendshift.io/repositories/128255?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-128255" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/128255/daily?language=Rust" alt="orbien-org%2Forbien | Trendshift" width="250" height="55"/></a>
 </div>
@@ -53,7 +61,7 @@
 - **传输协议**：支持 TCP、KCP、WebSocket、QUIC，支持TCP多路复用
 - **安全加密**：支持 Token 隧道鉴权以及Tls和mTLS加密传输；HTTPS采用透明转发和客户端TLS终止
 - **多平台支持**：支持 Windows、Linux、macOS、freeBSD 等多平台
-- **运维管理**：提供轻量Web管理界面和跨平台原生桌面客户端，便于配置和监控
+- **运维管理**：提供轻量服务端 Web 管理界面和跨平台原生桌面客户端；支持配置热重载和 ACME 证书自动申请
 
 ## 快速开始
 
